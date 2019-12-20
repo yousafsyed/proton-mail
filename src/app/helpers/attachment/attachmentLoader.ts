@@ -11,21 +11,18 @@ import { getAttachment } from '../../api/attachments';
 import { MessageExtended } from '../../models/message';
 import { Attachment, AttachmentData } from '../../models/attachment';
 import { AttachmentsCache } from '../../hooks/useAttachments';
-import { Api } from '../../models/utils';
+import { Api, Binary } from '../../models/utils';
 
 // Reference: Angular/src/app/attachments/services/AttachmentLoader.js
 
-interface SessionKey {
-    data?: Uint8Array;
+export interface SessionKey {
+    data: Binary;
     algorithm?: string;
 }
 
 // TODO: Handle isOutside()
 
-export const decrypt = async (
-    encryptedBinaryBuffer: ArrayBuffer,
-    sessionKey: SessionKey = {}
-): Promise<AttachmentData> => {
+export const decrypt = async (encryptedBinaryBuffer: ArrayBuffer, sessionKey: SessionKey): Promise<AttachmentData> => {
     const encryptedBinary = new Uint8Array(encryptedBinaryBuffer);
 
     try {
