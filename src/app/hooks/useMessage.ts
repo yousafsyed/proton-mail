@@ -4,7 +4,8 @@ import {
     getMessage,
     markMessageAsRead,
     createDraft as createDraftApi,
-    updateDraft
+    updateDraft,
+    deleteMessages
 } from 'proton-shared/lib/api/messages';
 
 import { transformEscape } from '../helpers/transforms/transformEscape';
@@ -44,6 +45,7 @@ interface MessageActions {
     createDraft: (message: MessageExtended) => Promise<void>;
     saveDraft: (message: MessageExtended) => Promise<void>;
     send: (message: MessageExtended) => Promise<void>;
+    deleteDraft: () => Promise<void>;
 }
 
 /**
@@ -90,7 +92,8 @@ export const useMessage = (inputMessage: Message, mailSettings: any): [MessageEx
         cache.has(messageID) ? setMessage(cache.get(messageID)) : setMessage({ data: inputMessage });
 
         return cache.subscribe((changedMessageID) => {
-            if (changedMessageID === messageID) {
+            // Prevent updates on message deltion from the cache to prevent undefined message in state.
+            if (changedMessageID === messageID && cache.has(messageID)) {
                 setMessage(cache.get(messageID));
             }
         });
@@ -140,6 +143,7 @@ export const useMessage = (inputMessage: Message, mailSettings: any): [MessageEx
     const create = useCallback(
         async (message: MessageExtended = {}) => {
             const { Message } = await api(createDraftApi({ Message: message.data } as any));
+            call();
             return { data: Message };
         },
         [api]
@@ -148,7 +152,17 @@ export const useMessage = (inputMessage: Message, mailSettings: any): [MessageEx
     const update = useCallback(
         async (message: MessageExtended = {}) => {
             const { Message } = await api(updateDraft(message.data?.ID, message.data));
+            call();
             return { data: Message };
+        },
+        [api]
+    );
+
+    const deleteRequest = useCallback(
+        async (message: MessageExtended = {}) => {
+            await api(deleteMessages([message.data?.ID]));
+            call();
+            return {};
         },
         [api]
     );
@@ -243,6 +257,11 @@ export const useMessage = (inputMessage: Message, mailSettings: any): [MessageEx
         [message, run, cache]
     );
 
+    const deleteDraft = useCallback(async () => {
+        await run(message, [deleteRequest]);
+        cache.delete(messageID);
+    }, [message, run, cache]);
+
     return [
         message,
         {
@@ -251,7 +270,8 @@ export const useMessage = (inputMessage: Message, mailSettings: any): [MessageEx
             loadEmbeddedImages,
             createDraft,
             saveDraft,
-            send
+            send,
+            deleteDraft
         }
     ];
 };
